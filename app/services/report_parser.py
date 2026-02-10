@@ -1,5 +1,44 @@
 import re
 
+# Patterns that indicate footer/signature content (cut recommendations here)
+_FOOTER_PATTERN = re.compile(
+    r"\n\s*(?:M\.?V\.?\s|M\.?P\.?\s|Mat\.\s*\d|DiagnoVet|\d{3}[\-\s]?\d{7})",
+    re.IGNORECASE,
+)
+
+# Leading bullet characters to strip
+_BULLET_RE = re.compile(r"^[\s•●\-\*]+")
+
+# Sex normalization map
+_SEX_MAP = {
+    "hembra": "Hembra",
+    "macho": "Macho",
+    "h": "Hembra",
+    "m": "Macho",
+    "hembra castrada": "Hembra castrada",
+    "hembra-castrada": "Hembra castrada",
+    "hembra - castrada": "Hembra castrada",
+    "macho castrado": "Macho castrado",
+    "macho-castrado": "Macho castrado",
+    "macho - castrado": "Macho castrado",
+}
+
+
+def _normalize_sex(raw: str | None) -> str | None:
+    if not raw:
+        return None
+    key = raw.strip().lower()
+    return _SEX_MAP.get(key, raw.strip())
+
+
+def _clean_text(text: str) -> str:
+    """Strip leading bullets and truncate at footer/signature lines."""
+    text = _BULLET_RE.sub("", text).strip()
+    match = _FOOTER_PATTERN.search(text)
+    if match:
+        text = text[: match.start()].strip()
+    return text
+
 
 class VeterinaryReportParser:
     """Extract structured fields from veterinary report text."""
@@ -19,7 +58,10 @@ class VeterinaryReportParser:
             r"(?:Derivante|Profesional|Referido\s+por|"
             r"DERIVANTE|PROFESIONAL)\s*[:\-]\s*(.+?)(?:\n|$)"
         ),
-        "date": r"(?:Fecha|FECHA)\s*[:\-]?\s*\n?\s*(\d{1,2}[/\-.]\d{1,2}[/\-.]\d{2,4})",
+        "date": (
+            r"(?:Fecha|FECHA)\s*[:\-]?\s*\n?\s*"
+            r"(\d{1,2}[/\-.]\d{1,2}[/\-.]\d{2,4})"
+        ),
     }
 
     DIAGNOSIS_HEADERS = [
@@ -41,11 +83,19 @@ class VeterinaryReportParser:
         for field, pattern in cls.PATTERNS.items():
             match = re.search(pattern, text, re.IGNORECASE)
             value = match.group(1).strip() if match else None
-            # Discard empty or garbage captures
             result[field] = value if value else None
 
-        result["diagnosis"] = cls._extract_section(text, cls.DIAGNOSIS_HEADERS)
-        result["recommendations"] = cls._extract_recommendations(text)
+        # Normalize sex to standard values
+        result["sex"] = _normalize_sex(result.get("sex"))
+
+        # Extract and clean multi-line sections
+        diagnosis = cls._extract_section(text, cls.DIAGNOSIS_HEADERS)
+        result["diagnosis"] = _clean_text(diagnosis) if diagnosis else None
+
+        recommendations = cls._extract_recommendations(text)
+        result["recommendations"] = (
+            _clean_text(recommendations) if recommendations else None
+        )
 
         return result
 

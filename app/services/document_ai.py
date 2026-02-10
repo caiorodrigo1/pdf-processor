@@ -4,7 +4,6 @@ from google.cloud import documentai_v1 as documentai
 from app.exceptions import DocumentAIError
 from app.models.pdf import ImageInfo, PageInfo
 
-
 MAX_PAGES_PER_REQUEST = 15
 
 

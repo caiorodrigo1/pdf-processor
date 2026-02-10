@@ -149,9 +149,60 @@ def test_parse_chester_report() -> None:
     assert result["owner_name"] == "Naveda"
     assert result["species"] == "Canino"
     assert result["breed"] == "Dobermann"
-    assert result["sex"] == "M"
+    assert result["sex"] == "Macho"
     assert result["age"] is None
     assert result["veterinarian"] == "Dra. Gerbeno"
     assert result["date"] == "11/03/2022"
     assert result["diagnosis"] is not None
     assert "osteosarcoma" in result["diagnosis"]
+
+
+def test_normalize_sex_macho_castrado() -> None:
+    text = "Sexo: Macho-Castrado\nEspecie: Canino"
+    result = VeterinaryReportParser.parse(text)
+    assert result["sex"] == "Macho castrado"
+
+
+def test_normalize_sex_hembra_castrada() -> None:
+    text = "Sexo: hembra castrada\nEspecie: Canino"
+    result = VeterinaryReportParser.parse(text)
+    assert result["sex"] == "Hembra castrada"
+
+
+def test_normalize_sex_single_letter() -> None:
+    text = "Sexo: M\nEdad: 5"
+    result = VeterinaryReportParser.parse(text)
+    assert result["sex"] == "Macho"
+
+
+def test_normalize_sex_lowercase() -> None:
+    text = "Sexo: macho\nEdad: 10"
+    result = VeterinaryReportParser.parse(text)
+    assert result["sex"] == "Macho"
+
+
+def test_recommendations_strips_footer() -> None:
+    text = (
+        "Se recomienda control en 30 días.\n"
+        "M.V. Alborno Nicolás E.\nM.P. 2938\nDiagnoVet"
+    )
+    result = VeterinaryReportParser.parse(text)
+    assert result["recommendations"] == "control en 30 días."
+
+
+def test_recommendations_strips_bullets() -> None:
+    text = "Se recomienda • estudio radiológico de control."
+    result = VeterinaryReportParser.parse(text)
+    assert result["recommendations"] is not None
+    assert not result["recommendations"].startswith("•")
+
+
+def test_diagnosis_strips_bullets() -> None:
+    text = """\
+CONCLUSION:
+• Catarata intumescente bilateral.
+• Desprendimiento vítreo posterior.
+"""
+    result = VeterinaryReportParser.parse(text)
+    assert result["diagnosis"] is not None
+    assert not result["diagnosis"].startswith("•")
