@@ -3,7 +3,11 @@ import unicodedata
 
 # Patterns that indicate footer/signature content (cut recommendations here)
 _FOOTER_PATTERN = re.compile(
-    r"\n\s*(?:M\.?V\.?\s|M\.?P\.?\s|Mat\.\s*\d|DiagnoVet|\d{3}[\-\s]?\d{7})",
+    r"(?:^|\n)\s*(?:"
+    r"M\.?V\.?\s|M\.?P\.?\s|Mat\.\s*\d|DiagnoVet|\d{3}[\-\s]?\d{7}"
+    r"|Dr[a]?\s*\.?\s+\w"
+    r"|Medic[oa]\s+Veterinari[oa]"
+    r")",
     re.IGNORECASE,
 )
 
@@ -150,9 +154,8 @@ class VeterinaryReportParser:
         result["diagnosis"] = _clean_diagnosis(diagnosis) if diagnosis else None
 
         recommendations = cls._extract_recommendations(text)
-        result["recommendations"] = (
-            _clean_text(recommendations) if recommendations else None
-        )
+        cleaned_rec = _clean_text(recommendations) if recommendations else None
+        result["recommendations"] = cleaned_rec if cleaned_rec else None
 
         return result
 

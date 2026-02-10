@@ -155,6 +155,20 @@ def test_parse_chester_report() -> None:
     assert result["date"] == "11/03/2022"
     assert result["diagnosis"] is not None
     assert "osteosarcoma" in result["diagnosis"]
+    # Comentarios: has no content, only signature — should be None
+    assert result["recommendations"] is None
+
+
+def test_comentarios_only_signature_returns_none() -> None:
+    """Comentarios: followed only by vet signature should yield no recommendation."""
+    text = (
+        "Diagnostico radiográfico:\n"
+        "Imágenes sugerentes de osteosarcoma.\n"
+        "Comentarios:\n"
+        "Dr. Martin Vittaz\nMedico Veterinario\nMat. 429\n"
+    )
+    result = VeterinaryReportParser.parse(text)
+    assert result["recommendations"] is None
 
 
 def test_normalize_sex_macho_castrado() -> None:
