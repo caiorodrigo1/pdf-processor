@@ -9,9 +9,10 @@ concurrency:
   cancel-in-progress: true
 
 env:
+  GCP_PROJECT_ID: project-ec9895c7-d5d1-442d-96c
   GCP_REGION: us-central1
   SERVICE_NAME: pdf-processor
-  IMAGE: us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/pdf-processor/api
+  IMAGE: us-central1-docker.pkg.dev/project-ec9895c7-d5d1-442d-96c/pdf-processor/api
 
 jobs:
   test:
@@ -67,7 +68,7 @@ jobs:
         run: |
           gcloud builds submit \
             --tag "${{ env.IMAGE }}:${{ github.sha }}" \
-            --project "${{ secrets.GCP_PROJECT_ID }}"
+            --project "${{ env.GCP_PROJECT_ID }}"
 
       - name: Deploy to Cloud Run
         uses: google-github-actions/deploy-cloudrun@v2
@@ -75,4 +76,4 @@ jobs:
           service: ${{ env.SERVICE_NAME }}
           region: ${{ env.GCP_REGION }}
           image: ${{ env.IMAGE }}:${{ github.sha }}
-          project_id: ${{ secrets.GCP_PROJECT_ID }}
+          project_id: ${{ env.GCP_PROJECT_ID }}
