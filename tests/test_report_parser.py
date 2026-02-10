@@ -206,3 +206,83 @@ CONCLUSION:
     result = VeterinaryReportParser.parse(text)
     assert result["diagnosis"] is not None
     assert not result["diagnosis"].startswith("•")
+
+
+def test_parse_date_yyyy_mm_dd() -> None:
+    """Date in YYYY/MM/DD format (e.g. Fecha: 2025/08/27)."""
+    text = "Fecha: 2025/08/27\nPaciente: Ramón"
+    result = VeterinaryReportParser.parse(text)
+    assert result["date"] == "2025/08/27"
+
+
+def test_parse_ramon_report() -> None:
+    """Test with real Ramón report text structure (diagnosis + Notas section)."""
+    text = (
+        "Informe Radiográfico\n"
+        "Fecha: 2025/08/27\n"
+        "Paciente: Ramón Tutor: Simonetti\n"
+        "Especie: Canino Raza: Schnauzer miniatura\n"
+        "Sexo: Macho-Castrado Edad: 13 años\n"
+        "Derivante: Ghersevich Carolina\n"
+        "Solicitud:\n"
+        "Radiografía de tórax\n\n"
+        "Se observa:\n"
+        "Silueta cardiaca aumentada.\n"
+        "No se observan signos de efusión pleural ni de neumotórax.\n\n"
+        "M.V. Alborno Nicolás E.\nM.P. 2938\n351-3417639\n\n"
+        "DIAGNÓSTICO RADIOGRÁFICO\n"
+        "Espondilosis T13-L1.\n"
+        "Signos de bronquitis crónica moderada.\n"
+        "Presuntivo de mineralización distrófica pulmonar. "
+        "Diagnostico menos probable:\nneoplasia miliar.\n"
+        "Cardiomegalia.\n\n"
+        "Notas:\n"
+        "Se recomienda estudio radiológico de control en 30 días, "
+        "según criterio clínico.\n\n"
+        "M.V. Alborno Nicolás E.\nM.P. 2938\n351-3417639\n"
+    )
+    result = VeterinaryReportParser.parse(text)
+    assert result["patient_name"] == "Ramón"
+    assert result["owner_name"] == "Simonetti"
+    assert result["date"] == "2025/08/27"
+    assert result["sex"] == "Macho castrado"
+    assert result["species"] == "Canino"
+    assert result["breed"] == "Schnauzer miniatura"
+    assert result["age"] == "13 años"
+    assert result["veterinarian"] == "Ghersevich Carolina"
+    assert result["diagnosis"] is not None
+    assert "Espondilosis" in result["diagnosis"]
+    assert "Cardiomegalia" in result["diagnosis"]
+    # Diagnosis should NOT include the Notas section
+    assert "recomienda" not in (result["diagnosis"] or "")
+    assert result["recommendations"] is not None
+    assert "estudio radiológico" in result["recommendations"]
+
+
+def test_notas_section_multiline() -> None:
+    """Notas: on its own line with content on the next line."""
+    text = (
+        "DIAGNÓSTICO RADIOGRÁFICO\n"
+        "Cardiomegalia.\n\n"
+        "Notas:\n"
+        "• Se recomienda ecocardiograma complementario.\n\n"
+        "M.V. Test\n"
+    )
+    result = VeterinaryReportParser.parse(text)
+    assert result["recommendations"] is not None
+    assert "ecocardiograma" in result["recommendations"]
+
+
+def test_diagnosis_stops_before_notas() -> None:
+    """Diagnosis extraction should stop at Notas: section."""
+    text = (
+        "DIAGNÓSTICO RADIOGRÁFICO\n"
+        "Espondilosis T13-L1.\n"
+        "Cardiomegalia.\n"
+        "\nNotas:\n"
+        "Se recomienda control en 30 días.\n"
+    )
+    result = VeterinaryReportParser.parse(text)
+    assert result["diagnosis"] is not None
+    assert "Espondilosis" in result["diagnosis"]
+    assert "recomienda" not in result["diagnosis"]

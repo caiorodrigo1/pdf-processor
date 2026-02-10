@@ -1,4 +1,5 @@
 import re
+import unicodedata
 
 # Patterns that indicate footer/signature content (cut recommendations here)
 _FOOTER_PATTERN = re.compile(
@@ -43,24 +44,37 @@ def _clean_text(text: str) -> str:
 class VeterinaryReportParser:
     """Extract structured fields from veterinary report text."""
 
+    # Known field labels used to detect column boundaries on same line
+    _FIELD_LABELS = (
+        r"Paciente|Nombre|Especie|Raza|Sexo|Edad|"
+        r"Tutor|Propietario|Derivante|Profesional|"
+        r"Fecha|Referido"
+    )
+
+    # End-of-value: next field label on same line (horizontal whitespace),
+    # or newline, or end of string.
+    _VALUE_END = (
+        rf"(?=[^\S\n]+(?:{_FIELD_LABELS})\s*[:\-]|\n|$)"
+    )
+
     PATTERNS = {
         "patient_name": (
-            r"(?:Paciente|Nombre|PACIENTE|NOMBRE)\s*[:\-]\s*(.+?)(?:\n|$)"
+            rf"(?:Paciente|Nombre|PACIENTE|NOMBRE)\s*[:\-]\s*(.+?){_VALUE_END}"
         ),
-        "species": r"(?:Especie|ESPECIE)\s*[:\-]\s*(.+?)(?:\n|$)",
-        "breed": r"(?:Raza|RAZA)\s*[:\-]\s*(.+?)(?:\n|$)",
-        "sex": r"(?:Sexo|SEXO)\s*[:\-]\s*(.+?)(?:\n|$)",
-        "age": r"(?:Edad|EDAD)[^\S\n]*[:\-][^\S\n]*(\S[^\n]*)(?:\n|$)",
+        "species": rf"(?:Especie|ESPECIE)\s*[:\-]\s*(.+?){_VALUE_END}",
+        "breed": rf"(?:Raza|RAZA)\s*[:\-]\s*(.+?){_VALUE_END}",
+        "sex": rf"(?:Sexo|SEXO)\s*[:\-]\s*(.+?){_VALUE_END}",
+        "age": rf"(?:Edad|EDAD)[^\S\n]*[:\-][^\S\n]*(\S[^\n]*?){_VALUE_END}",
         "owner_name": (
-            r"(?:Tutor|Propietario|TUTOR|PROPIETARIO)\s*[:\-]\s*(.+?)(?:\n|$)"
+            rf"(?:Tutor|Propietario|TUTOR|PROPIETARIO)\s*[:\-]\s*(.+?){_VALUE_END}"
         ),
         "veterinarian": (
-            r"(?:Derivante|Profesional|Referido\s+por|"
-            r"DERIVANTE|PROFESIONAL)\s*[:\-]\s*(.+?)(?:\n|$)"
+            rf"(?:Derivante|Profesional|Referido\s+por|"
+            rf"DERIVANTE|PROFESIONAL)\s*[:\-]\s*(.+?){_VALUE_END}"
         ),
         "date": (
             r"(?:Fecha|FECHA)\s*[:\-]?\s*\n?\s*"
-            r"(\d{1,2}[/\-.]\d{1,2}[/\-.]\d{2,4})"
+            r"(\d{1,4}[/\-.]\d{1,2}[/\-.]\d{2,4})"
         ),
     }
 
@@ -72,12 +86,18 @@ class VeterinaryReportParser:
     ]
 
     RECOMMENDATION_PATTERNS = [
-        r"(?:Se\s+recomienda|Recomendaciones?|Notas?)\s*[:\-]?\s*(.+?)(?:\n\n|\Z)",
+        r"(?:Se\s+recomienda|Recomendaciones?)\s*[:\-]?\s*(.+?)(?:\n\n|\Z)",
+        r"(?:Notas?)\s*[:\-]\s*\n([\s\S]*?)(?:\n\n\n|\n\n(?=[A-ZÁÉÍÓÚÑM])|\Z)",
+        r"(?:Notas?)\s*[:\-]?\s*(.+?)(?:\n\n|\Z)",
         r"(?:Comentarios?)\s*[:\-]?\s*\n([\s\S]*?)(?:\n\n|\Z)",
     ]
 
     @classmethod
     def parse(cls, text: str) -> dict[str, str | None]:
+        # Normalize Unicode so decomposed accents (from Document AI OCR)
+        # match precomposed characters in our regex patterns.
+        text = unicodedata.normalize("NFC", text)
+
         result: dict[str, str | None] = {}
 
         for field, pattern in cls.PATTERNS.items():
@@ -105,7 +125,13 @@ class VeterinaryReportParser:
             pattern = (
                 rf"(?:{header})\s*[:\-]?\s*\n"
                 r"([\s\S]*?)"
-                r"(?:\n\n\n|\n[A-ZÁÉÍÓÚÑ]{2,}|\Z)"
+                # (?-i:...) disables IGNORECASE so only UPPERCASE lines terminate
+                r"(?:\n\n\n|\n(?-i:[A-ZÁÉÍÓÚÑ]{2,})"
+                r"|\nNotas?\s*[:\-]"
+                r"|\nSe\s+recomienda"
+                r"|\nRecomendaciones?\s*[:\-]"
+                r"|\nComentarios?\s*[:\-]"
+                r"|\Z)"
             )
             match = re.search(pattern, text, re.IGNORECASE)
             if match:
