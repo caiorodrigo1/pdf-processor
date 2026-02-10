@@ -1,4 +1,4 @@
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, field_validator
 
 
 class Token(BaseModel):
@@ -25,6 +25,13 @@ class RegisterRequest(BaseModel):
     username: str
     email: EmailStr
     password: str
+
+    @field_validator("username")
+    @classmethod
+    def username_no_spaces(cls, v: str) -> str:
+        if " " in v:
+            raise ValueError("Username must not contain spaces")
+        return v
 
 
 class RegisterResponse(BaseModel):

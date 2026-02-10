@@ -4,6 +4,10 @@ REST API that transforms veterinary diagnostic PDF reports into structured JSON 
 
 **Stack:** Python 3.11 | FastAPI | Document AI | Cloud Storage | Firestore | Docker
 
+**Live API:** https://pdf-processor-954383017603.us-central1.run.app
+
+**Swagger Docs:** https://pdf-processor-954383017603.us-central1.run.app/docs
+
 ## Quick Start
 
 ```bash
