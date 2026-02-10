@@ -41,6 +41,32 @@ def _clean_text(text: str) -> str:
     return text
 
 
+def _clean_diagnosis(text: str) -> str:
+    """Clean diagnosis: strip bullets, collapse to single line, trim footer."""
+    match = _FOOTER_PATTERN.search(text)
+    if match:
+        text = text[: match.start()]
+    # Remove bullet characters
+    text = re.sub(r"[•●]", "", text)
+    # Replace newlines (and surrounding whitespace) with a single space
+    text = re.sub(r"\s*\n\s*", " ", text)
+    # Collapse multiple spaces
+    text = re.sub(r"  +", " ", text)
+    return text.strip()
+
+
+def _normalize_date(raw: str | None) -> str | None:
+    """Normalize date to DD/MM/YYYY format."""
+    if not raw:
+        return None
+    # Try YYYY/MM/DD or YYYY-MM-DD or YYYY.MM.DD
+    m = re.match(r"(\d{4})[/\-.](\d{1,2})[/\-.](\d{1,2})$", raw)
+    if m:
+        return f"{m.group(3)}/{m.group(2)}/{m.group(1)}"
+    # Already DD/MM/YYYY or similar — return as-is
+    return raw
+
+
 class VeterinaryReportParser:
     """Extract structured fields from veterinary report text."""
 
@@ -86,9 +112,12 @@ class VeterinaryReportParser:
     ]
 
     RECOMMENDATION_PATTERNS = [
-        r"(?:Se\s+recomienda|Recomendaciones?)\s*[:\-]?\s*(.+?)(?:\n\n|\Z)",
+        # Notas: as section header (content on next line) — must be before Se recomienda
         r"(?:Notas?)\s*[:\-]\s*\n([\s\S]*?)(?:\n\n\n|\n\n(?=[A-ZÁÉÍÓÚÑM])|\Z)",
+        # Notas: with content on same line
         r"(?:Notas?)\s*[:\-]?\s*(.+?)(?:\n\n|\Z)",
+        # Se recomienda / Recomendaciones (standalone, not under Notas)
+        r"(?:Se\s+recomienda|Recomendaciones?)\s*[:\-]?\s*(.+?)(?:\n\n|\Z)",
         r"(?:Comentarios?)\s*[:\-]?\s*\n([\s\S]*?)(?:\n\n|\Z)",
     ]
 
@@ -108,9 +137,12 @@ class VeterinaryReportParser:
         # Normalize sex to standard values
         result["sex"] = _normalize_sex(result.get("sex"))
 
+        # Normalize date to DD/MM/YYYY
+        result["date"] = _normalize_date(result.get("date"))
+
         # Extract and clean multi-line sections
         diagnosis = cls._extract_section(text, cls.DIAGNOSIS_HEADERS)
-        result["diagnosis"] = _clean_text(diagnosis) if diagnosis else None
+        result["diagnosis"] = _clean_diagnosis(diagnosis) if diagnosis else None
 
         recommendations = cls._extract_recommendations(text)
         result["recommendations"] = (

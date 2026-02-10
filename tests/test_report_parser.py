@@ -197,7 +197,7 @@ def test_recommendations_strips_bullets() -> None:
     assert not result["recommendations"].startswith("•")
 
 
-def test_diagnosis_strips_bullets() -> None:
+def test_diagnosis_strips_bullets_and_newlines() -> None:
     text = """\
 CONCLUSION:
 • Catarata intumescente bilateral.
@@ -205,14 +205,24 @@ CONCLUSION:
 """
     result = VeterinaryReportParser.parse(text)
     assert result["diagnosis"] is not None
-    assert not result["diagnosis"].startswith("•")
+    assert "•" not in result["diagnosis"]
+    assert "\n" not in result["diagnosis"]
+    assert "Catarata intumescente bilateral." in result["diagnosis"]
+    assert "Desprendimiento vítreo posterior." in result["diagnosis"]
 
 
-def test_parse_date_yyyy_mm_dd() -> None:
-    """Date in YYYY/MM/DD format (e.g. Fecha: 2025/08/27)."""
+def test_parse_date_yyyy_mm_dd_normalized() -> None:
+    """Date in YYYY/MM/DD format is normalized to DD/MM/YYYY."""
     text = "Fecha: 2025/08/27\nPaciente: Ramón"
     result = VeterinaryReportParser.parse(text)
-    assert result["date"] == "2025/08/27"
+    assert result["date"] == "27/08/2025"
+
+
+def test_parse_date_dd_mm_yyyy_unchanged() -> None:
+    """Date already in DD/MM/YYYY stays as-is."""
+    text = "Fecha: 15/01/2025\nPaciente: Luna"
+    result = VeterinaryReportParser.parse(text)
+    assert result["date"] == "15/01/2025"
 
 
 def test_parse_ramon_report() -> None:
@@ -244,7 +254,7 @@ def test_parse_ramon_report() -> None:
     result = VeterinaryReportParser.parse(text)
     assert result["patient_name"] == "Ramón"
     assert result["owner_name"] == "Simonetti"
-    assert result["date"] == "2025/08/27"
+    assert result["date"] == "27/08/2025"
     assert result["sex"] == "Macho castrado"
     assert result["species"] == "Canino"
     assert result["breed"] == "Schnauzer miniatura"
@@ -253,9 +263,12 @@ def test_parse_ramon_report() -> None:
     assert result["diagnosis"] is not None
     assert "Espondilosis" in result["diagnosis"]
     assert "Cardiomegalia" in result["diagnosis"]
+    assert "\n" not in result["diagnosis"]
+    assert "•" not in result["diagnosis"]
     # Diagnosis should NOT include the Notas section
     assert "recomienda" not in (result["diagnosis"] or "")
     assert result["recommendations"] is not None
+    assert "Se recomienda" in result["recommendations"]
     assert "estudio radiológico" in result["recommendations"]
 
 
@@ -270,6 +283,7 @@ def test_notas_section_multiline() -> None:
     )
     result = VeterinaryReportParser.parse(text)
     assert result["recommendations"] is not None
+    assert "Se recomienda" in result["recommendations"]
     assert "ecocardiograma" in result["recommendations"]
 
 
