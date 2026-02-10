@@ -33,12 +33,15 @@ def _normalize_sex(raw: str | None) -> str | None:
 
 
 def _clean_text(text: str) -> str:
-    """Strip leading bullets and truncate at footer/signature lines."""
+    """Strip leading bullets, truncate at footer, collapse to single line."""
     text = _BULLET_RE.sub("", text).strip()
     match = _FOOTER_PATTERN.search(text)
     if match:
         text = text[: match.start()].strip()
-    return text
+    # Replace newlines with spaces and collapse multiple spaces
+    text = re.sub(r"\s*\n\s*", " ", text)
+    text = re.sub(r"  +", " ", text)
+    return text.strip()
 
 
 def _clean_diagnosis(text: str) -> str:

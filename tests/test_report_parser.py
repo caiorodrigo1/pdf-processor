@@ -345,7 +345,8 @@ def test_parse_eco_ramon_report() -> None:
     assert "Insuficiencia aortica grave" in result["diagnosis"]
     assert "\n" not in result["diagnosis"]
     assert "•" not in result["diagnosis"]
-    # Recommendations: "Se recomienda" must be included
+    # Recommendations: "Se recomienda" must be included, no newlines
     assert result["recommendations"] is not None
     assert "Se recomienda" in result["recommendations"]
     assert "pimobendan" in result["recommendations"]
+    assert "\n" not in result["recommendations"]
