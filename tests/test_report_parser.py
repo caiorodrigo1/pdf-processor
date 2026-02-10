@@ -187,7 +187,7 @@ def test_recommendations_strips_footer() -> None:
         "M.V. Alborno Nicolás E.\nM.P. 2938\nDiagnoVet"
     )
     result = VeterinaryReportParser.parse(text)
-    assert result["recommendations"] == "control en 30 días."
+    assert result["recommendations"] == "Se recomienda control en 30 días."
 
 
 def test_recommendations_strips_bullets() -> None:
@@ -300,3 +300,52 @@ def test_diagnosis_stops_before_notas() -> None:
     assert result["diagnosis"] is not None
     assert "Espondilosis" in result["diagnosis"]
     assert "recomienda" not in result["diagnosis"]
+
+
+def test_parse_eco_ramon_report() -> None:
+    """Test with echocardiographic report text structure."""
+    text = (
+        "M.V. Alborno Nicolás E. M.V. Proietti Josefina M.V. Rivero Macarena\n"
+        "M.P. 2938 M.P. 4727 M.P. 4736\n"
+        "351-3417639\n"
+        "Informe Ecográfico\n"
+        "Fecha: 27/08/2025\n"
+        "Paciente: Ramón Edad: 13 Años\n"
+        "Especie: Canino Raza: Schnauzer mini Sexo:Macho castrado\n"
+        "Propietario: Simonetti Profesional: Ghersevich Carolina\n\n"
+        "Ecocardiografía\n"
+        "Evaluación Cuantitativa:\n"
+        "Espesor en diástole de tabique interventricular (IVSd) 8 mm\n\n"
+        "Diagnostico Ecocardiográfico:\n"
+        "• Enfermedad valvular degenerativa crónica mitral y tricúspidea, sin\n"
+        "remodelación cardiaca.\n"
+        "• Insuficiencia aortica grave, con sobrecarga e hipertensión de\n"
+        "ventrículo izquierdo.\n\n"
+        "M.V. Alborno Nicolás E.\nM.P. 2938\n351-3417639\n"
+        "Se recomienda pimobendan 0.25 mg/kg cada 12 horas, de por vida.\n"
+        "Dar, en lo posible, 30 minutos antes de comer.\n"
+        "Cardial B, a dosis de 0.5 mg/kg de benazepril cada 24 horas, "
+        "de por vida.\n"
+        "Dieta hiposódica.\n"
+        "Control cardiológico en 30 días, según criterio medico clínico.\n\n"
+        "M.V. Alborno Nicolás E.\nM.P. 2938\n351-3417639\n"
+    )
+    result = VeterinaryReportParser.parse(text)
+    assert result["patient_name"] == "Ramón"
+    assert result["owner_name"] == "Simonetti"
+    assert result["date"] == "27/08/2025"
+    assert result["sex"] == "Macho castrado"
+    assert result["species"] == "Canino"
+    assert result["breed"] == "Schnauzer mini"
+    assert result["age"] == "13 Años"
+    assert result["veterinarian"] == "Ghersevich Carolina"
+    # Diagnosis: cleaned, no bullets or newlines
+    assert result["diagnosis"] is not None
+    assert "Enfermedad valvular degenerativa" in result["diagnosis"]
+    assert "Insuficiencia aortica grave" in result["diagnosis"]
+    assert "\n" not in result["diagnosis"]
+    assert "•" not in result["diagnosis"]
+    # Recommendations: "Se recomienda" must be included
+    assert result["recommendations"] is not None
+    assert "Se recomienda" in result["recommendations"]
+    assert "pimobendan" in result["recommendations"]

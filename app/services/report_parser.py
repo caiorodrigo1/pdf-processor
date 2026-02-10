@@ -116,8 +116,10 @@ class VeterinaryReportParser:
         r"(?:Notas?)\s*[:\-]\s*\n([\s\S]*?)(?:\n\n\n|\n\n(?=[A-ZÁÉÍÓÚÑM])|\Z)",
         # Notas: with content on same line
         r"(?:Notas?)\s*[:\-]?\s*(.+?)(?:\n\n|\Z)",
-        # Se recomienda / Recomendaciones (standalone, not under Notas)
-        r"(?:Se\s+recomienda|Recomendaciones?)\s*[:\-]?\s*(.+?)(?:\n\n|\Z)",
+        # Se recomienda (standalone) — include the phrase itself in the capture
+        r"(Se\s+recomienda\b[\s\S]*?)(?:\n\n|\Z)",
+        # Recomendaciones header — capture content after the label
+        r"(?:Recomendaciones?)\s*[:\-]\s*([\s\S]*?)(?:\n\n|\Z)",
         r"(?:Comentarios?)\s*[:\-]?\s*\n([\s\S]*?)(?:\n\n|\Z)",
     ]
 
