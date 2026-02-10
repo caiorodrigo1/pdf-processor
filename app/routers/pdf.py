@@ -137,6 +137,21 @@ def upload_pdf(
     )
 
 
+@router.get("/", response_model=list[PDFRecord])
+def list_pdf_records(
+    request: Request,
+    current_user: Annotated[str, Depends(get_current_user)],
+    limit: int = 50,
+    offset: int = 0,
+) -> list[PDFRecord]:
+    firestore_svc = getattr(request.app.state, "firestore_service", None)
+    if firestore_svc is None:
+        raise PDFProcessorError("Firestore unavailable", status_code=503)
+
+    records = firestore_svc.list_records(limit=limit, offset=offset)
+    return [PDFRecord(**r) for r in records]
+
+
 @router.get("/{document_id}", response_model=PDFRecord)
 def get_pdf_record(
     request: Request,

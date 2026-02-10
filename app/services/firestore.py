@@ -26,6 +26,19 @@ class FirestoreService:
         except Exception as exc:
             raise FirestoreError(f"Failed to get record: {exc}") from exc
 
+    def list_records(self, limit: int = 50, offset: int = 0) -> list[dict]:
+        """List PDF records ordered by creation date (newest first)."""
+        try:
+            query = (
+                self._collection
+                .order_by("created_at", direction=firestore.Query.DESCENDING)
+                .offset(offset)
+                .limit(limit)
+            )
+            return [doc.to_dict() for doc in query.stream()]
+        except Exception as exc:
+            raise FirestoreError(f"Failed to list records: {exc}") from exc
+
     # --- User methods ---
 
     def save_user(self, username: str, data: dict) -> None:

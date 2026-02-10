@@ -301,3 +301,58 @@ def test_get_pdf_record_not_found(
 def test_get_pdf_record_requires_auth(app: TestClient) -> None:
     response = app.get("/pdf/abc123")
     assert response.status_code == 401
+
+
+def test_list_pdf_records_success(
+    app: TestClient, auth_headers: dict[str, str]
+) -> None:
+    mock_firestore: MagicMock = app.app.state.firestore_service
+    mock_firestore.list_records.return_value = [
+        {
+            "document_id": "abc123",
+            "filename": "test.pdf",
+            "gcs_uri": "gs://bucket/uploads/test.pdf",
+            "total_pages": 1,
+            "images": [],
+            "report_info": {
+                "patient_name": "Luna",
+                "species": "Canino",
+                "breed": None,
+                "sex": None,
+                "age": None,
+                "owner_name": None,
+                "veterinarian": None,
+                "date": None,
+                "diagnosis": None,
+                "recommendations": None,
+            },
+            "processing_time_seconds": 1.5,
+            "created_at": "2025-01-15T10:00:00+00:00",
+            "uploaded_by": "admin",
+        },
+    ]
+
+    response = app.get("/pdf/", headers=auth_headers)
+    assert response.status_code == 200
+    body = response.json()
+    assert isinstance(body, list)
+    assert len(body) == 1
+    assert body[0]["document_id"] == "abc123"
+    mock_firestore.list_records.assert_called_once_with(limit=50, offset=0)
+
+
+def test_list_pdf_records_with_pagination(
+    app: TestClient, auth_headers: dict[str, str]
+) -> None:
+    mock_firestore: MagicMock = app.app.state.firestore_service
+    mock_firestore.list_records.return_value = []
+
+    response = app.get("/pdf/?limit=10&offset=20", headers=auth_headers)
+    assert response.status_code == 200
+    assert response.json() == []
+    mock_firestore.list_records.assert_called_once_with(limit=10, offset=20)
+
+
+def test_list_pdf_records_requires_auth(app: TestClient) -> None:
+    response = app.get("/pdf/")
+    assert response.status_code == 401
