@@ -213,7 +213,25 @@ All GCP services are mocked in tests -- no real credentials needed to run the su
 | `SMTP_PASSWORD` | No | SMTP password / app password |
 | `SMTP_FROM_EMAIL` | No | Sender email address |
 
-## Deploy to Cloud Run
+## CI/CD
+
+Automated via **GitHub Actions** with keyless **Workload Identity Federation** (no service account keys).
+
+Push to `main` triggers: **lint → tests → Cloud Build → Cloud Run deploy**.
+
+```
+push main → [ruff check] → [pytest] → [Cloud Build: docker image] → [Cloud Run: deploy]
+```
+
+The pipeline uses:
+- **Workload Identity Federation** for keyless GCP auth (OIDC token exchange)
+- **Cloud Build** for remote Docker image builds (tagged with commit SHA)
+- **`deploy-cloudrun`** action to update the Cloud Run service image
+- **Concurrency control** to cancel in-flight deploys on new pushes
+
+GitHub Secrets required: `WIF_PROVIDER`, `WIF_SERVICE_ACCOUNT`.
+
+## Manual Deploy
 
 ```bash
 # Build
