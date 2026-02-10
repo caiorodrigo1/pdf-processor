@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, EmailStr
 
 
 class Token(BaseModel):
@@ -17,3 +17,17 @@ class UserBase(BaseModel):
 
 class UserInDB(UserBase):
     hashed_password: str
+    email: str = ""
+    is_verified: bool = False
+
+
+class RegisterRequest(BaseModel):
+    username: str
+    email: EmailStr
+    password: str
+
+
+class RegisterResponse(BaseModel):
+    message: str
+    username: str
+    email: str

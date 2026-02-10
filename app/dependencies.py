@@ -6,7 +6,7 @@ from slowapi import Limiter
 from slowapi.util import get_remote_address
 
 from app.config import Settings
-from app.services.auth import decode_access_token, get_user
+from app.services.auth import decode_access_token
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/token")
 
@@ -18,6 +18,7 @@ def get_settings(request: Request) -> Settings:
 
 
 def get_current_user(
+    request: Request,
     token: Annotated[str, Depends(oauth2_scheme)],
     settings: Annotated[Settings, Depends(get_settings)],
 ) -> str:
@@ -30,11 +31,20 @@ def get_current_user(
             detail="Invalid or expired token",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    user = get_user(payload.sub)
-    if user is None:
+
+    firestore_svc = request.app.state.firestore_service
+    user_data = firestore_svc.get_user(payload.sub) if firestore_svc else None
+    if user_data is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="User not found",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    return user.username
+
+    if not user_data.get("is_verified", False):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Email not verified",
+        )
+
+    return user_data["username"]

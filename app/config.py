@@ -16,6 +16,13 @@ class Settings(BaseSettings):
     # Firestore
     firestore_database: str = "(default)"
 
+    # SMTP (Gmail)
+    smtp_host: str = "smtp.gmail.com"
+    smtp_port: int = 587
+    smtp_user: str = ""
+    smtp_password: str = ""
+    smtp_from_email: str = ""
+
     # App
     debug: bool = False
     cors_origins: list[str] = ["http://localhost:3000"]

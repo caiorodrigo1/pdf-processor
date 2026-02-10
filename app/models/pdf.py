@@ -37,8 +37,6 @@ class PDFUploadResponse(BaseModel):
     filename: str
     gcs_uri: str
     total_pages: int
-    full_text: str
-    pages: list[PageInfo]
     images: list[ImageInfo]
     report_info: ReportInfo
     processing_time_seconds: float
@@ -51,8 +49,6 @@ class PDFRecord(BaseModel):
     filename: str
     gcs_uri: str
     total_pages: int
-    full_text: str
-    pages: list[PageInfo]
     images: list[ImageInfo]
     report_info: ReportInfo
     processing_time_seconds: float

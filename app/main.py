@@ -11,7 +11,9 @@ from app.config import Settings
 from app.dependencies import limiter
 from app.exceptions import PDFProcessorError, pdf_processor_error_handler
 from app.routers import auth, health, pdf
+from app.services.auth import hash_password
 from app.services.document_ai import DocumentAIService
+from app.services.email import EmailService
 from app.services.firestore import FirestoreService
 from app.services.storage import StorageService
 
@@ -53,6 +55,36 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             except Exception as exc:
                 logger.warning("Firestore unavailable: %s", exc)
                 app.state.firestore_service = None
+        if not hasattr(app.state, "email_service"):
+            if settings.smtp_user and settings.smtp_password:
+                app.state.email_service = EmailService(
+                    host=settings.smtp_host,
+                    port=settings.smtp_port,
+                    user=settings.smtp_user,
+                    password=settings.smtp_password,
+                    from_email=settings.smtp_from_email or settings.smtp_user,
+                )
+            else:
+                logger.warning("SMTP not configured — email disabled")
+                app.state.email_service = None
+
+        # Seed admin user if not exists
+        if app.state.firestore_service:
+            try:
+                existing = app.state.firestore_service.get_user("admin")
+                if not existing:
+                    app.state.firestore_service.save_user(
+                        "admin",
+                        {
+                            "username": "admin",
+                            "email": settings.smtp_from_email or "admin@localhost",
+                            "hashed_password": hash_password("changeme123"),
+                            "is_verified": True,
+                        },
+                    )
+                    logger.info("Admin user seeded")
+            except Exception as exc:
+                logger.warning("Could not seed admin user: %s", exc)
         yield
 
     application = FastAPI(

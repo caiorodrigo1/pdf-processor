@@ -131,8 +131,6 @@ def upload_pdf(
         filename=safe_filename,
         gcs_uri=gcs_uri,
         total_pages=len(pages),
-        full_text=full_text,
-        pages=pages,
         images=images,
         report_info=report_info,
         processing_time_seconds=round(elapsed, 3),

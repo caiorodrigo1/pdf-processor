@@ -77,9 +77,8 @@ def test_upload_success(
     body = response.json()
     assert body["filename"] == "sample.pdf"
     assert body["total_pages"] == 1
-    assert body["full_text"] == "Extracted text from PDF"
-    assert len(body["pages"]) == 1
-    assert body["pages"][0]["detected_languages"] == ["en"]
+    assert "full_text" not in body
+    assert "pages" not in body
     assert "document_id" in body
     assert "gcs_uri" in body
     assert "processing_time_seconds" in body
