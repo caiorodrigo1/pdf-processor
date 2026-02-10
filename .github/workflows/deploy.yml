@@ -68,7 +68,8 @@ jobs:
         run: |
           gcloud builds submit \
             --tag "${{ env.IMAGE }}:${{ github.sha }}" \
-            --project "${{ env.GCP_PROJECT_ID }}"
+            --project "${{ env.GCP_PROJECT_ID }}" \
+            --suppress-logs
 
       - name: Deploy to Cloud Run
         uses: google-github-actions/deploy-cloudrun@v2
