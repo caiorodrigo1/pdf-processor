@@ -66,9 +66,22 @@ jobs:
 
       - name: Build with Cloud Build
         run: |
-          gcloud builds submit \
+          BUILD_ID=$(gcloud builds submit \
             --tag "${{ env.IMAGE }}:${{ github.sha }}" \
-            --project "${{ env.GCP_PROJECT_ID }}"
+            --project "${{ env.GCP_PROJECT_ID }}" \
+            --async --format='value(id)')
+          echo "Build started: $BUILD_ID"
+          while true; do
+            STATUS=$(gcloud builds describe "$BUILD_ID" \
+              --project "${{ env.GCP_PROJECT_ID }}" \
+              --format='value(status)')
+            echo "Status: $STATUS"
+            case "$STATUS" in
+              SUCCESS) exit 0 ;;
+              FAILURE|TIMEOUT|CANCELLED|EXPIRED) exit 1 ;;
+            esac
+            sleep 15
+          done
 
       - name: Deploy to Cloud Run
         uses: google-github-actions/deploy-cloudrun@v2
