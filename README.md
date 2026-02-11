@@ -33,6 +33,7 @@ docker compose up --build
 | `GET`  | `/auth/verify?token=` | No | Verify email address |
 | `POST` | `/auth/token` | No | Login with username/password, returns JWT |
 | `POST` | `/pdf/upload` | Bearer | Upload a PDF for processing |
+| `GET`  | `/pdf/` | Bearer | List all processed records (paginated) |
 | `GET`  | `/pdf/{document_id}` | Bearer | Retrieve a processed record |
 | `GET`  | `/health` | No | Health check |
 
@@ -57,7 +58,11 @@ curl -X POST http://localhost:8000/pdf/upload \
   -H "Authorization: Bearer $TOKEN" \
   -F "file=@report.pdf"
 
-# 5. Retrieve by document_id
+# 5. List all records (paginated)
+curl "http://localhost:8000/pdf/?limit=10&offset=0" \
+  -H "Authorization: Bearer $TOKEN"
+
+# 6. Retrieve by document_id
 curl http://localhost:8000/pdf/{document_id} \
   -H "Authorization: Bearer $TOKEN"
 ```
@@ -104,7 +109,7 @@ Client
 +--------------------------------------------------+
 |  FastAPI  (Cloud Run)                            |
 |                                                  |
-|  /auth/*      /pdf/upload    /pdf/{id}           |
+|  /auth/*      /pdf/upload   /pdf/   /pdf/{id}     |
 |       |              |              |            |
 |  +----v--------------v--------------v---------+  |
 |  |              Service Layer                 |  |
@@ -165,7 +170,7 @@ app/
   routers/
     auth.py                # POST /auth/token, /auth/register, GET /auth/verify
     health.py              # GET /health
-    pdf.py                 # POST /pdf/upload, GET /pdf/{id}
+    pdf.py                 # POST /pdf/upload, GET /pdf/, GET /pdf/{id}
   services/
     auth.py                # JWT creation + verification, bcrypt
     document_ai.py         # Document AI client + auto-chunking
@@ -186,7 +191,7 @@ tests/
 ## Tests
 
 ```bash
-poetry run pytest tests/ -v       # 53 tests
+poetry run pytest tests/ -v       # 63 tests
 poetry run ruff check app/ tests/ # Linter
 ```
 
@@ -231,15 +236,23 @@ The pipeline uses:
 
 GitHub Secrets required: `WIF_PROVIDER`, `WIF_SERVICE_ACCOUNT`.
 
-## Manual Deploy
+## Cloud Run
+
+| | |
+|---|---|
+| **URL** | https://pdf-processor-954383017603.us-central1.run.app |
+| **Region** | us-central1 |
+| **Image** | us-central1-docker.pkg.dev/project-ec9895c7-d5d1-442d-96c/pdf-processor/api |
+
+### Manual Deploy
 
 ```bash
-# Build
-gcloud builds submit --tag gcr.io/$PROJECT_ID/pdf-processor
+# Build via Cloud Build (tags with commit SHA)
+gcloud builds submit --tag us-central1-docker.pkg.dev/$PROJECT_ID/pdf-processor/api
 
-# Deploy
+# Deploy to Cloud Run
 gcloud run deploy pdf-processor \
-  --image gcr.io/$PROJECT_ID/pdf-processor \
+  --image us-central1-docker.pkg.dev/$PROJECT_ID/pdf-processor/api \
   --platform managed \
   --region us-central1 \
   --set-env-vars "JWT_SECRET_KEY=...,GCP_PROJECT_ID=...,GCP_PROCESSOR_ID=...,GCS_BUCKET_NAME=..."
